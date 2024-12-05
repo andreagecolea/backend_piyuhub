@@ -6,254 +6,261 @@ class PostWeb {
     public function __construct($db) {
         $this->db = $db;
     }
-    public function post_concern() {
-        global $conn;
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
-        header('Content-Type: application/json');
-        header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type");
-    
-        // Retrieve posted data
-        $student_id = $_POST['student_id'] ?? null;
-        $student_name = $_POST['student_name'] ?? null;
-        $post_text = isset($_POST['concern']) ? trim($_POST['concern']) : null;
-    
-        if (empty($student_id) || empty($student_name)) {
-            echo json_encode(['error' => true, 'message' => 'Student information is missing.']);
-            return;
-        }
-    
-        if (empty($post_text)) {
-            echo json_encode(['error' => true, 'message' => 'Concern text is missing.']);
-            return;
-        }
-    
-        // Handle image upload
-        $uploaded_images = [];  // Array to store image paths
-        if (isset($_FILES['images'])) {
-            foreach ($_FILES['images']['error'] as $error) {
-                if ($error !== UPLOAD_ERR_OK) {
-                    echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
-                    return;
-                }
-            }
-    
-            for ($i = 0; $i < count($_FILES['images']['name']); $i++) {
-                $image_name = basename($_FILES['images']['name'][$i]);
-                $target_dir = "Upload/posts/";
-                $target_file = $target_dir . uniqid() . "_" . $image_name;
-    
-                if (!move_uploaded_file($_FILES['images']['tmp_name'][$i], $target_file)) {
-                    echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
-                    return;
-                }
-    
-                // Store each uploaded image path in the array
-                $uploaded_images[] = $target_file;
-            }
-        }
-    
-        // Insert the post into the 'post' table
-        $query = "INSERT INTO post (student_id, student_name, post_text) VALUES (?, ?, ?)";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("sss", $student_id, $student_name, $post_text);
-    
-        if ($stmt->execute()) {
-            $post_id = $stmt->insert_id;  // Get the inserted post's ID
-            
-            // Insert the images into a separate table (if there are images)
-            if (!empty($uploaded_images)) {
-                $image_query = "INSERT INTO post_images (post_id, image_path) VALUES (?, ?)";
-                $image_stmt = $conn->prepare($image_query);
-    
-                foreach ($uploaded_images as $image_path) {
-                    $image_stmt->bind_param("is", $post_id, $image_path);
-                    $image_stmt->execute();
-                }
-                $image_stmt->close();
-            }
-    
-            echo json_encode(['success' => true, 'message' => 'Your concern has been posted successfully!']);
-        } else {
-            echo json_encode(['success' => false, 'error' => 'Error posting concern: ' . $stmt->error]);
-        }
-    
-        $stmt->close();
+   public function post_concern() {
+    global $conn;
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    header('Content-Type: application/json');
+    header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type");
+
+    // Retrieve posted data
+    $student_id = $_POST['student_id'] ?? null;
+    $student_name = $_POST['student_name'] ?? null;
+    $post_text = isset($_POST['concern']) ? trim($_POST['concern']) : null;
+
+    if (empty($student_id) || empty($student_name)) {
+        echo json_encode(['error' => true, 'message' => 'Student information is missing.']);
+        return;
     }
-    public function post_concern_college() {
-        global $conn;
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
-        header('Content-Type: application/json');
-        header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type");
-    
+
+    if (empty($post_text)) {
+        echo json_encode(['error' => true, 'message' => 'Concern text is missing.']);
+        return;
+    }
+
+    // Handle image upload
+    $uploaded_images = [];  // Array to store image paths
+    if (isset($_FILES['images']) && !empty($_FILES['images']['name'][0])) {
+        foreach ($_FILES['images']['error'] as $error) {
+            if ($error !== UPLOAD_ERR_OK) {
+                echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
+                return;
+            }
+        }
+
+        for ($i = 0; $i < count($_FILES['images']['name']); $i++) {
+            $image_name = basename($_FILES['images']['name'][$i]);
+            $target_dir = "Upload/posts/"; // This is the local directory on the server
+            $target_file = $target_dir . uniqid() . "_" . $image_name;
+
+            // Move the uploaded file to the target directory
+            if (!move_uploaded_file($_FILES['images']['tmp_name'][$i], $target_file)) {
+                echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
+                return;
+            }
+
+            // Store each uploaded image path (relative path from the server root)
+            $uploaded_images[] = $target_file;
+        }
+    }
+
+    // Insert the post into the 'post' table
+    $query = "INSERT INTO post (student_id, student_name, post_text) VALUES (?, ?, ?)";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("sss", $student_id, $student_name, $post_text);
+
+    if ($stmt->execute()) {
+        $post_id = $stmt->insert_id;  // Get the inserted post's ID
+        
+        // Insert the images into a separate table (if there are images)
+        if (!empty($uploaded_images)) {
+            $image_query = "INSERT INTO post_images (post_id, image_path) VALUES (?, ?)";
+            $image_stmt = $conn->prepare($image_query);
+
+            foreach ($uploaded_images as $image_path) {
+                // Store the full URL path for the image (adjust based on your actual website URL)
+                $full_image_url = "https://pxfafdht.a2hosted.com/" . $image_path;
+
+                $image_stmt->bind_param("is", $post_id, $full_image_url);
+                $image_stmt->execute();
+            }
+            $image_stmt->close();
+        }
+
+        echo json_encode(['success' => true, 'message' => 'Your concern has been posted successfully!']);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Error posting concern: ' . $stmt->error]);
+    }
+
+    $stmt->close();
+}
+
+public function post_concern_college() {
+    global $conn;
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    header('Content-Type: application/json');
+    header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type");
+
+    try {
         // Retrieve posted data
         $student_id = $_POST['student_id'] ?? null;
         $student_name = $_POST['student_name'] ?? null;
         $post_text = isset($_POST['concern']) ? trim($_POST['concern']) : null;
-    
+
         if (empty($student_id) || empty($student_name)) {
-            echo json_encode(['success' => false, 'message' => 'Student information is missing.']);
-            return;
+            throw new Exception('Student information is missing.');
         }
-    
+
         if (empty($post_text)) {
-            echo json_encode(['success' => false, 'message' => 'Concern text is missing.']);
-            return;
+            throw new Exception('Concern text is missing.');
         }
-    
+
         // Handle image upload (if any)
         $uploaded_images = [];
         if (isset($_FILES['images'])) {
             foreach ($_FILES['images']['error'] as $error) {
                 if ($error !== UPLOAD_ERR_OK) {
-                    echo json_encode(['success' => false, 'message' => 'Error uploading image.']);
-                    return;
+                    throw new Exception('Error uploading image.');
                 }
             }
-    
+
             // Upload each image
             for ($i = 0; $i < count($_FILES['images']['name']); $i++) {
                 $image_name = basename($_FILES['images']['name'][$i]);
                 $target_dir = "Upload/posts/";
                 $unique_image_name = uniqid() . "_" . $image_name;
                 $target_file = $target_dir . $unique_image_name;
-    
+
                 if (!move_uploaded_file($_FILES['images']['tmp_name'][$i], $target_file)) {
-                    echo json_encode(['success' => false, 'message' => 'Error uploading image.']);
-                    return;
+                    throw new Exception('Error uploading image.');
                 }
-    
+
                 $uploaded_images[] = $target_file;
             }
         }
-    
+
         // Insert the post into the 'post_college' table
         $query = "INSERT INTO post_college (student_id, student_name, post_text) VALUES (?, ?, ?)";
         $stmt = $conn->prepare($query);
         $stmt->bind_param("sss", $student_id, $student_name, $post_text);
-    
-        if ($stmt->execute()) {
-            $post_id = $stmt->insert_id; // Get the inserted post's ID
-    
-            // Insert the images into a separate table (if there are images)
-            if (!empty($uploaded_images)) {
-                $image_query = "INSERT INTO post_images_college (post_id, image_path) VALUES (?, ?)";
-                $image_stmt = $conn->prepare($image_query);
-    
-                foreach ($uploaded_images as $image_path) {
-                    $image_stmt->bind_param("is", $post_id, $image_path);
-                    $image_stmt->execute();
-                }
-                $image_stmt->close();
-            }
-    
-            // Determine the type of user and send notifications
-            $position_query = "SELECT position, college, email FROM users WHERE student_id = ?";
-            $pos_stmt = $conn->prepare($position_query);
-            $pos_stmt->bind_param("s", $student_id);
-            $pos_stmt->execute();
-            $user_data = $pos_stmt->get_result()->fetch_assoc();
-            $user_position = $user_data['position'];
-            $user_college = $user_data['college'];
-            $user_email = $user_data['email'];
-    
-            // Logic for sending notifications
-            if ($user_position === 'Developer' || $user_position === 'Admin') {
-                // Notify all users, regardless of college
-                $this->notifyAllUsers($post_id, "New announcement by $student_name", $post_text);
-            } elseif ($user_position === 'SSC' || $user_position === 'Representative') {
-                // Notify users within the same college
-                $this->notifyCollegeUsers($post_id, $user_college, "New announcement by $student_name of $user_college", $post_text);
-                // Notify Developers and Admins as well
-                $this->notifyAdmins($post_id, "New announcement by $student_name ($user_position) in $user_college", $post_text);
-            }
-    
-            echo json_encode(['success' => true, 'message' => 'Your concern has been posted successfully!']);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Error posting concern: ' . $stmt->error]);
+
+        if (!$stmt->execute()) {
+            throw new Exception('Error posting concern: ' . $stmt->error);
         }
-    
-        $stmt->close();
+
+        $post_id = $stmt->insert_id; // Get the inserted post's ID
+
+        // Insert the images into a separate table (if there are images)
+        if (!empty($uploaded_images)) {
+            $image_query = "INSERT INTO post_images_college (post_id, image_path) VALUES (?, ?)";
+            $image_stmt = $conn->prepare($image_query);
+
+            foreach ($uploaded_images as $image_path) {
+                $full_image_url = "https://pxfafdht.a2hosted.com/" . $image_path;
+                $image_stmt->bind_param("is", $post_id, $full_image_url);
+                $image_stmt->execute();
+            }
+            $image_stmt->close();
+        }
+
+        // Determine the type of user and send notifications
+        $position_query = "SELECT position, college, email FROM users WHERE student_id = ?";
+        $pos_stmt = $conn->prepare($position_query);
+        $pos_stmt->bind_param("s", $student_id);
+        $pos_stmt->execute();
+        $user_data = $pos_stmt->get_result()->fetch_assoc();
+        $user_position = $user_data['position'];
+        $user_college = $user_data['college'];
+        $user_email = $user_data['email'];
+
+        // Logic for sending notifications
+        if ($user_position === 'Developer' || $user_position === 'Admin') {
+            $this->notifyAllUsers($post_id, "New announcement by $student_name", $post_text);
+        } elseif ($user_position === 'SSC' || $user_position === 'Representative') {
+            $this->notifyCollegeUsers($post_id, $user_college, "New announcement by $student_name of $user_college", $post_text);
+            $this->notifyAdmins($post_id, "New announcement by $student_name ($user_position) in $user_college", $post_text);
+        }
+
+        echo json_encode(['success' => true, 'message' => 'Your concern has been posted successfully!']);
+    } catch (Exception $e) {
+        // Return error as JSON
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
-    public function post_concern_lost() {
-        global $conn;
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
-        header('Content-Type: application/json');
-        header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type");
-    
-        // Retrieve posted data
-        $student_id = $_POST['student_id'] ?? null;
-        $student_name = $_POST['student_name'] ?? null;
-        $post_text = isset($_POST['concern']) ? trim($_POST['concern']) : null;
-        $status = $_POST['status'] ?? 'LOST'; // Default to 'LOST' if status is missing
-    
-        if (empty($student_id) || empty($student_name)) {
-            echo json_encode(['error' => true, 'message' => 'Student information is missing.']);
-            return;
-        }
-    
-        if (empty($post_text)) {
-            echo json_encode(['error' => true, 'message' => 'Concern text is missing.']);
-            return;
-        }
-    
-        // Handle image upload
-        $uploaded_images = [];  // Array to store image paths
-        if (isset($_FILES['images'])) {
-            foreach ($_FILES['images']['error'] as $error) {
-                if ($error !== UPLOAD_ERR_OK) {
-                    echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
-                    return;
-                }
-            }
-    
-            for ($i = 0; $i < count($_FILES['images']['name']); $i++) {
-                $image_name = basename($_FILES['images']['name'][$i]);
-                $target_dir = "Upload/posts/";
-                $target_file = $target_dir . uniqid() . "_" . $image_name;
-    
-                if (!move_uploaded_file($_FILES['images']['tmp_name'][$i], $target_file)) {
-                    echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
-                    return;
-                }
-    
-                // Store each uploaded image path in the array
-                $uploaded_images[] = $target_file;
-            }
-        }
-    
-        // Insert the concern with the status
-        $query = "INSERT INTO post_lost (student_id, student_name, post_text, status) VALUES (?, ?, ?, ?)";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("ssss", $student_id, $student_name, $post_text, $status);
-    
-        if ($stmt->execute()) {
-            $post_id = $stmt->insert_id;  // Get the inserted post's ID
-    
-            // Insert the images into a separate table (if there are images)
-            if (!empty($uploaded_images)) {
-                $image_query = "INSERT INTO post_images_lost (post_id, image_path) VALUES (?, ?)";
-                $image_stmt = $conn->prepare($image_query);
-    
-                foreach ($uploaded_images as $image_path) {
-                    $image_stmt->bind_param("is", $post_id, $image_path);
-                    $image_stmt->execute();
-                }
-                $image_stmt->close();
-            }
-    
-            echo json_encode(['success' => true, 'message' => 'Your concern has been posted successfully!']);
-        } else {
-            echo json_encode(['success' => false, 'error' => 'Error posting concern: ' . $stmt->error]);
-        }
-    
-        $stmt->close();
+}
+
+public function post_concern_lost() {
+    global $conn;
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    header('Content-Type: application/json');
+    header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type");
+
+    // Retrieve posted data
+    $student_id = $_POST['student_id'] ?? null;
+    $student_name = $_POST['student_name'] ?? null;
+    $post_text = isset($_POST['concern']) ? trim($_POST['concern']) : null;
+    $status = $_POST['status'] ?? 'LOST'; // Default to 'LOST' if status is missing
+
+    if (empty($student_id) || empty($student_name)) {
+        echo json_encode(['error' => true, 'message' => 'Student information is missing.']);
+        return;
     }
+
+    if (empty($post_text)) {
+        echo json_encode(['error' => true, 'message' => 'Concern text is missing.']);
+        return;
+    }
+
+    // Handle image upload
+    $uploaded_images = [];  // Array to store image paths
+    if (isset($_FILES['images'])) {
+        foreach ($_FILES['images']['error'] as $error) {
+            if ($error !== UPLOAD_ERR_OK) {
+                echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
+                return;
+            }
+        }
+
+        for ($i = 0; $i < count($_FILES['images']['name']); $i++) {
+            $image_name = basename($_FILES['images']['name'][$i]);
+            $target_dir = "Upload/posts/"; // This is the local directory on the server
+            $target_file = $target_dir . uniqid() . "_" . $image_name;
+
+            // Move the uploaded file to the target directory
+            if (!move_uploaded_file($_FILES['images']['tmp_name'][$i], $target_file)) {
+                echo json_encode(['success' => false, 'error' => 'Error uploading image.']);
+                return;
+            }
+
+            // Store each uploaded image path (relative path from the server root)
+            $uploaded_images[] = $target_file;
+        }
+    }
+
+    // Insert the post into the 'post' table
+    $query = "INSERT INTO post_lost (student_id, student_name, post_text, status) VALUES (?, ?, ?, ?)";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ssss", $student_id, $student_name, $post_text, $status);
+
+    if ($stmt->execute()) {
+        $post_id = $stmt->insert_id;  // Get the inserted post's ID
+        
+        // Insert the images into a separate table (if there are images)
+        if (!empty($uploaded_images)) {
+            $image_query = "INSERT INTO post_images_lost (post_id, image_path) VALUES (?, ?)";
+            $image_stmt = $conn->prepare($image_query);
+
+            foreach ($uploaded_images as $image_path) {
+                $full_image_url = "https://pxfafdht.a2hosted.com/" . $image_path;
+
+                $image_stmt->bind_param("is", $post_id, $full_image_url);
+                $image_stmt->execute();
+            }
+            $image_stmt->close();
+        }
+
+        echo json_encode(['success' => true, 'message' => 'Your lost item post has been posted successfully!']);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Error posting lost item concern: ' . $stmt->error]);
+    }
+
+    $stmt->close();
+}
+
     
     
     // Function to notify all users
