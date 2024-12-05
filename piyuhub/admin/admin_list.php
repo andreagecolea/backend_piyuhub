@@ -1,6 +1,6 @@
     <?php
     class AdminList{
-        public function pending(){
+        public function pending() {
             // Set response headers
             header("Access-Control-Allow-Origin: *");
             header("Content-Type: application/json");
@@ -9,7 +9,10 @@
         
             global $conn;
         
-            // Fetch the list of pending users, including the 'id' field
+            // Define base URL for ID pictures
+            $baseUrl = "https://pxfafdht.a2hosted.com/Upload/profile/";
+        
+            // Fetch the list of pending users
             $query = "SELECT id, id_pic, fname, lname, id_no, college, email, position, status FROM users WHERE status = 'pending'";
             $result = $conn->query($query);
         
@@ -19,6 +22,8 @@
                 $users = array();
         
                 while ($row = $result->fetch_assoc()) {
+                    // Prepend base URL to id_pic path
+                    $row['id_pic'] = $baseUrl . $row['id_pic'];
                     $users[] = $row;
                 }
         
@@ -31,7 +36,8 @@
         
             echo json_encode($response);
         }
-        public function approved(){
+        
+        public function approved() {
             // Set response headers
             header("Access-Control-Allow-Origin: *");
             header("Content-Type: application/json");
@@ -40,7 +46,10 @@
         
             global $conn;
         
-            // Fetch the list of pending users, including the 'id' field
+            // Define base URL for ID pictures
+            $baseUrl = "https://pxfafdht.a2hosted.com/Upload/profile/";
+        
+            // Fetch the list of approved users
             $query = "SELECT id, id_pic, fname, lname, id_no, college, email, position, status FROM users WHERE status = 'approved'";
             $result = $conn->query($query);
         
@@ -50,6 +59,8 @@
                 $users = array();
         
                 while ($row = $result->fetch_assoc()) {
+                    // Prepend base URL to id_pic path
+                    $row['id_pic'] = $baseUrl . $row['id_pic'];
                     $users[] = $row;
                 }
         
@@ -57,12 +68,13 @@
                 $response['users'] = $users;
             } else {
                 $response['status'] = 'error';
-                $response['message'] = 'No pending users found.';
+                $response['message'] = 'No approved users found.';
             }
         
             echo json_encode($response);
         }
-        public function blocked(){
+        
+        public function blocked() {
             // Set response headers
             header("Access-Control-Allow-Origin: *");
             header("Content-Type: application/json");
@@ -71,7 +83,10 @@
         
             global $conn;
         
-            // Fetch the list of pending users, including the 'id' field
+            // Define base URL for ID pictures
+            $baseUrl = "https://pxfafdht.a2hosted.com/Upload/profile/";
+        
+            // Fetch the list of blocked users
             $query = "SELECT id, id_pic, fname, lname, id_no, college, email, position, status FROM users WHERE status = 'blocked'";
             $result = $conn->query($query);
         
@@ -81,6 +96,8 @@
                 $users = array();
         
                 while ($row = $result->fetch_assoc()) {
+                    // Prepend base URL to id_pic path
+                    $row['id_pic'] = $baseUrl . $row['id_pic'];
                     $users[] = $row;
                 }
         
@@ -88,11 +105,12 @@
                 $response['users'] = $users;
             } else {
                 $response['status'] = 'error';
-                $response['message'] = 'No pending users found.';
+                $response['message'] = 'No blocked users found.';
             }
         
             echo json_encode($response);
         }
+        
         public function process(){
             // Set response headers
             header("Access-Control-Allow-Origin: *");
